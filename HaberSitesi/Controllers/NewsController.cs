@@ -27,28 +27,44 @@ namespace HaberSitesi.Controllers
         }
         // GET: News/Details/5
 
-        public ActionResult Details(String categoryUrl ,String newsUrl)
+        public ActionResult Details(String categoryUrl ,String newsUrl, string[] news)
         {
-            if (String.IsNullOrWhiteSpace(categoryUrl) || String.IsNullOrWhiteSpace(newsUrl))
+            if (Request.IsAjaxRequest())
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            try
-            {
-                DetailsDto<News> dtoNewsDetails = _newsServices.GetNewsDetails(categoryUrl,newsUrl);
-                ViewBag.apiUrl = ConfigurationManager.AppSettings.Get("apiUrl");
-                if (dtoNewsDetails.Item == null)
+                try
                 {
-                    return RedirectToAction("Index","Home");
+                    return PartialView("_DetailInfinite",_newsServices.GetInfinite(newsUrl,news));
                 }
-                ViewBag.apiUrl = ConfigurationManager.AppSettings.Get("apiUrl");
-                return View(dtoNewsDetails);
-            }
+                catch (Exception)
+                {
 
-            catch (Exception ex)
-            {
-                throw ex;
+                    throw;
+                }
             }
+            else
+            {
+                if (String.IsNullOrWhiteSpace(categoryUrl) || String.IsNullOrWhiteSpace(newsUrl))
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                try
+                {
+                    DetailsDto<News> dtoNewsDetails = _newsServices.GetNewsDetails(categoryUrl, newsUrl);
+                    ViewBag.apiUrl = ConfigurationManager.AppSettings.Get("apiUrl");
+                    if (dtoNewsDetails.Item == null)
+                    {
+                        return RedirectToAction("Index", "Home");
+                    }
+                    ViewBag.apiUrl = ConfigurationManager.AppSettings.Get("apiUrl");
+                    return View(dtoNewsDetails);
+                }
+
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+            }
+            
             
         }
     }

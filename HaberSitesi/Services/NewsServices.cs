@@ -53,6 +53,18 @@ namespace HaberSitesi.Services
             }
         }
 
+        public News GetInfinite(string url, string[] news)
+        {
+            try
+            {
+                return _unitOfWork.NewsRepository.GetByUrl(url).Categories.Select(category => category.News).ToList()[0].ToList().Where(model => !news.Contains(model.url)).OrderByDescending(model => model.PublishDate).FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
         public News GetByUrl(String url)
         {
             try
@@ -131,7 +143,7 @@ namespace HaberSitesi.Services
                 //{ model.Title, model.Description,model.Img,model.PublishDate,model.Hit,model.url,model.MainSliderIMG,model.SidebarIMG,model.SliderBottomIMG,model.DetailsIMG,model.OtherIMG,model.BestWeeklyIMG,model.BestWeeklySmIMG,model.Categories}
                 IndexPageDto homePageData = new IndexPageDto();
                 //List<News> news = GetAllWithoutTrendingNow().ToList();
-                List<NewsAlbumMix> Items = GetAllWithoutTrendingNow().Where(model => model.Categories.Count > 0).Select(model => new NewsAlbumMix()
+                List<NewsAlbumMix> Items = GetTrendingNow().Where(model => model.Categories.Count > 0).Select(model => new NewsAlbumMix()
                 {
                     Title = model.Title,
                     Description = model.Description,
@@ -149,7 +161,25 @@ namespace HaberSitesi.Services
                     SidebarIMG = model.SidebarIMG,
                     OtherIMG = model.OtherIMG
                 }).ToList();
-                Items.AddRange(_unitOfWork.AlbumRepository.GetAll(true).Where(model => model.Categories.Count > 0 && model.PublishDate <= now).Select(model => new NewsAlbumMix() 
+                List<NewsAlbumMix> mixHolder = GetAllWithoutTrendingNow().Where(model => model.Categories.Count > 0).Select(model => new NewsAlbumMix()
+                {
+                    Title = model.Title,
+                    Description = model.Description,
+                    url = model.url,
+                    path = "",
+                    PublishDate = model.PublishDate,
+                    Hit = model.Hit,
+                    Categories = model.Categories,
+                    Img = model.Img,
+                    BestWeeklyIMG = model.BestWeeklyIMG,
+                    BestWeeklySmIMG = model.BestWeeklySmIMG,
+                    MainSliderIMG = model.MainSliderIMG,
+                    SliderBottomIMG = model.SliderBottomIMG,
+                    DetailsIMG = model.DetailsIMG,
+                    SidebarIMG = model.SidebarIMG,
+                    OtherIMG = model.OtherIMG
+                }).ToList();
+                mixHolder.AddRange(_unitOfWork.AlbumRepository.GetAll(true).Where(model => model.Categories.Count > 0 && model.PublishDate <= now).Select(model => new NewsAlbumMix()
                 {
                     Title = model.Title,
                     Description = model.Description,
@@ -170,7 +200,7 @@ namespace HaberSitesi.Services
                 List<Video> VideoItems = new List<Video>();
                 VideoItems = _unitOfWork.VideoRepository.GetAll(true).Where(model => model.Categories.Count > 0 && model.PublishDate <= now).OrderByDescending(model => model.PublishDate).ToList();
                 homePageData.Videos = VideoItems.Take(6).ToList();
-                Items.AddRange(VideoItems.Skip(6).Select(model => new NewsAlbumMix()
+                mixHolder.AddRange(VideoItems.Skip(6).Select(model => new NewsAlbumMix()
                 {
                     Title = model.Title,
                     Description = model.Description,
@@ -188,10 +218,11 @@ namespace HaberSitesi.Services
                     SidebarIMG = model.SidebarIMG,
                     OtherIMG = model.OtherIMG
                 }).ToList().Where(model => (model.PublishDate <= DateTime.UtcNow.AddHours(3))));
-                Items = Items.OrderByDescending(model => model.Hit).ToList();
-                homePageData.TopHit = Items.GetRange(0, 16);
-                homePageData.Items = Items.Skip(12).OrderByDescending(model => model.PublishDate).ToList();
-                homePageData.TrendingNow = GetTrendingNow();                
+                mixHolder = mixHolder.OrderByDescending(model => model.Hit).ToList();
+                homePageData.TopHit = mixHolder.GetRange(0, 16);
+                homePageData.Items = Items;
+                homePageData.Items.AddRange(mixHolder.Skip(16).OrderByDescending(model => model.PublishDate).ToList());
+                homePageData.TrendingNow = GetTrendingNow();
                 return homePageData;
             }
             catch (Exception ex)
@@ -210,7 +241,7 @@ namespace HaberSitesi.Services
 
                 dtoNewsDetails.TrendingNow = GetTrendingNow();
                 var category = _unitOfWork.CategoryRepository.GetNewsByUrl(categoryUrl);
-                if(category == null)
+                if (category == null)
                 {
                     return dtoNewsDetails;
                 }
@@ -226,7 +257,7 @@ namespace HaberSitesi.Services
                 }
                 dtoNewsDetails.Sidebar = _unitOfWork.NewsRepository.GetByCategories(categoryIds);
 
-                if(dtoNewsDetails.Item != null)
+                if (dtoNewsDetails.Item != null)
                 {
                     _unitOfWork.NewsRepository.UpdateHit(newsUrl);
                 }
